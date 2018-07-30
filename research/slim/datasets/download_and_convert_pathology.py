@@ -29,7 +29,7 @@ from datasets.download_and_convert_flowers import ImageReader
 _NUM_VALIDATION = 100
 _NUM_TRAIN = 200
 _RANDOM_SEED = 0
-_NUM_SHARDS = 5
+_NUM_SHARDS = 1
 
 def _get_filenames_and_classes(dataset_dir):
 	"""Returns a list of filenames and inferred class names

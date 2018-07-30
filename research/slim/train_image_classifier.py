@@ -355,7 +355,7 @@ def _get_init_fn():
         break
     else:
       variables_to_restore.append(var)
-
+    
   if tf.gfile.IsDirectory(FLAGS.checkpoint_path):
     checkpoint_path = tf.train.latest_checkpoint(FLAGS.checkpoint_path)
   else:
@@ -381,6 +381,7 @@ def _get_variables_to_train():
     scopes = [scope.strip() for scope in FLAGS.trainable_scopes.split(',')]
 
   variables_to_train = []
+ 
   for scope in scopes:
     variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
     variables_to_train.extend(variables)
@@ -534,7 +535,7 @@ def main(_):
 
     # Variables to train.
     variables_to_train = _get_variables_to_train()
-
+    
     #  and returns a train_tensor and summary_op
     total_loss, clones_gradients = model_deploy.optimize_clones(
         clones,
@@ -559,7 +560,8 @@ def main(_):
 
     # Merge all summaries together.
     summary_op = tf.summary.merge(list(summaries), name='summary_op')
-
+     
+    
     ###########################
     # Kicks off the training. #
     ###########################
