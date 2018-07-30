@@ -112,7 +112,7 @@ def _dataset_exists(dataset_dir):
 def run(dataset_dir):
 	"""Runs the conversion operation
 	Args:
-	dataset_dir: the dataset direcgtory where the dataset is stored
+	dataset_dir: the dataset directory where the dataset is stored
 	"""
 
 	photo_filenames, class_names = _get_filenames_and_classes(dataset_dir)
