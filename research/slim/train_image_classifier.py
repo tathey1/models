@@ -23,6 +23,7 @@ import tensorflow as tf
 from datasets import dataset_factory
 from deployment import model_deploy
 from nets import nets_factory
+from checkpoints import checkpoints_map
 from preprocessing import preprocessing_factory
 
 slim = tf.contrib.slim
@@ -223,6 +224,11 @@ tf.app.flags.DEFINE_boolean(
     'ignore_missing_vars', False,
     'When restoring a checkpoint would ignore missing variables.')
 
+tf.app.flags.DEFINE_boolean(
+    'map_checkpoint', False,
+    'use the file checkpoints/checkpoints_map to retrieve weights from '
+    'a different model.')
+
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -362,11 +368,22 @@ def _get_init_fn():
     checkpoint_path = FLAGS.checkpoint_path
 
   tf.logging.info('Fine-tuning from %s' % checkpoint_path)
+  
 
-  return slim.assign_from_checkpoint_fn(
-      checkpoint_path,
-      variables_to_restore,
-      ignore_missing_vars=FLAGS.ignore_missing_vars)
+  if FLAGS.map_checkpoint:
+    print('Mapping Checkpoint to this model')
+    return slim.assign_from_checkpoint_fn(
+        checkpoint_path,
+        checkpoints_map.get_dict(variables_to_restore),
+        ignore_missing_vars=FLAGS.ignore_missing_vars)
+  else:
+    
+    for var in variables_to_restore:
+      print(var.name)
+    return slim.assign_from_checkpoint_fn(
+        checkpoint_path,
+        variables_to_restore,
+        ignore_missing_vars=FLAGS.ignore_missing_vars)
 
 
 def _get_variables_to_train():
