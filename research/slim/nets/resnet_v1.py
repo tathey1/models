@@ -262,6 +262,7 @@ def resnet_v1_pathology(inputs,
               is_training=True,
               global_pool=True,
               output_stride=None,
+              include_tile=True,
               include_root_block=True,
               spatial_squeeze=True,
               store_non_strided_activations=False,
@@ -280,6 +281,12 @@ def resnet_v1_pathology(inputs,
             if output_stride % 4 != 0:
               raise ValueError('The output_stride needs to be a multiple of 4.')
             output_stride /= 4
+          #tiling
+          shape = inputs.shape.as_list()
+          net = tf.extract_image_patches(net,ksizes=[1, 224, 224,shape[3]],
+                                         strides=[1,112,112,1],rates=[1,1,1,1],
+                                         padding="VALID",name="tile")
+          #*********************Code here should reshape the tiles somehow
           net = resnet_utils.conv2d_same(net, 64, 7, stride=2, scope='conv1')
           net = slim.max_pool2d(net, [3, 3], stride=2, scope='pool1')
         net = resnet_utils.stack_blocks_dense(net, blocks, output_stride,
