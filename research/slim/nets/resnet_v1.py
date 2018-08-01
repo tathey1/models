@@ -262,7 +262,6 @@ def resnet_v1_pathology(inputs,
               is_training=True,
               global_pool=True,
               output_stride=None,
-              include_tile=True,
               include_root_block=True,
               spatial_squeeze=True,
               store_non_strided_activations=False,
@@ -276,16 +275,15 @@ def resnet_v1_pathology(inputs,
       with (slim.arg_scope([slim.batch_norm], is_training=is_training)
             if is_training is not None else NoOpScope()):
         net = inputs
+        num_images = net.shape[0]
         if include_root_block:
           if output_stride is not None:
             if output_stride % 4 != 0:
               raise ValueError('The output_stride needs to be a multiple of 4.')
             output_stride /= 4
           #tiling
-          shape = inputs.shape.as_list()
-          net = tf.extract_image_patches(net,ksizes=[1, 224, 224,shape[3]],
-                                         strides=[1,112,112,1],rates=[1,1,1,1],
-                                         padding="VALID",name="tile")
+          net = _tile_images(net,num_images)
+          
           #*********************Code here should reshape the tiles somehow
           net = resnet_utils.conv2d_same(net, 64, 7, stride=2, scope='conv1')
           net = slim.max_pool2d(net, [3, 3], stride=2, scope='pool1')
@@ -299,12 +297,19 @@ def resnet_v1_pathology(inputs,
           # Global average pooling.
           net = tf.reduce_mean(net, [1, 2], name='pool5', keep_dims=True)
           end_points['global_pool'] = net
+
+
+        net = _max_tile(net,num_images)
+
         if num_classes:
           #first fully connected layer
           net = slim.conv2d(net, 512, [1,1], activation_fn=None,
                             normalizer_fn=None, scope='fc1')
           end_points[sc.name + '/fc1'] = net
-          #fully connected layer
+          #dropout
+          net = slim.dropout(net, keep_prob=0.8,scope='dropout')
+          end_points[sc.name + '/dropout'] = net
+          #final fully connected layer
           net = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
                             normalizer_fn=None, scope='logits')
           end_points[sc.name + '/logits'] = net
@@ -314,9 +319,44 @@ def resnet_v1_pathology(inputs,
             end_points[sc.name + '/spatial_squeeze'] = net
           end_points['predictions'] = slim.softmax(net, scope='predictions')
         return net, end_points
-resnet_v1_pathology.default_image_size = 224
+resnet_v1_pathology.default_image_size = [1568, 2240]
 
+def _tile_images(images,num_images):
+  """Turns each image into a batch of tiles
+  Args:
+  images = [batch, height_in, width_in, channels]
 
+  Return:
+  tiles = [batch*num_tiles,height_in, width_in, channels]
+  """
+  if images.shape[1] != 1568 or images.shape[2] != 2240:
+    raise ValueError('Image to be tiled was not 1568x2240, instead it was: '
+                     + images.shape[1] + 'x' + images.shape[2])
+
+  im_list = tf.split(images,num_images,0)
+  tile_1 = im_list
+  counter=0
+  for im in im_list:
+    temp = tf.split(im,7,1) #************hardcoded number 7
+    tile_1[counter]=tf.concat(temp,0)
+    counter+=1
+
+  tile_2=im_list
+  counter=0
+  for im in tile_1:
+    temp = tf.split(im,10,2) #**************hardoded 10
+    tile_2[counter] = tf.concat(temp,0)
+    counter+=1
+  return tf.concat(tile_2,0)
+
+def _max_tile(results, num_images):
+  list_images = tf.split(results, num_images,0)
+  maxed = list_images
+  counter=0
+  for im in list_images:
+    maxed[counter] = tf.reduce_max(im,axis=0,keepdims=True)
+    counter+=1
+  return tf.concat(maxed,0)
 
 def resnet_v1_block(scope, base_depth, num_units, stride):
   """Helper function for creating a resnet_v1 bottleneck block.
@@ -386,7 +426,7 @@ def resnet_v1_50_pathology_benchmark(inputs,
                    include_root_block=True, spatial_squeeze=spatial_squeeze,
                    store_non_strided_activations=store_non_strided_activations,
                    reuse=reuse, scope=scope)
-resnet_v1_50_pathology_benchmark.default_image_size = resnet_v1.default_image_size
+resnet_v1_50_pathology_benchmark.default_image_size = resnet_v1_pathology.default_image_size
 
 
 def resnet_v1_101(inputs,

@@ -20,6 +20,8 @@ _R_MEAN = 123.68
 _G_MEAN = 116.78
 _B_MEAN = 103.94
 
+
+
 def _mean_image_subtraction(image, means):
   """Subtracts the given means from each image channel.
   For example:
@@ -47,12 +49,19 @@ def _mean_image_subtraction(image, means):
     channels[i] -= means[i]
   return tf.concat(axis=2, values=channels)
 
+def resize(image):
+  paddings = tf.stack([[0,32],[0,192],[0,0]]) #hardvoded
+  return tf.pad(image,paddings, "CONSTANT")
 
 def preprocess_for_train(image, output_height, output_width):
+  image=resize(image)
+  image.set_shape([output_height, output_width, 3])
   image = tf.to_float(image)
   return _mean_image_subtraction(image, [_R_MEAN, _G_MEAN, _B_MEAN])
 
 def preprocess_for_eval(image, output_height, output_width):
+  image=resize(image)
+  image.set_shape([output_height, output_width,3])
   image = tf.to_float(image)
   return _mean_image_subtraction(image, [_R_MEAN, _G_MEAN, _B_MEAN])
 

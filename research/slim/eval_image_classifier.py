@@ -124,8 +124,10 @@ def main(_):
         is_training=False)
 
     eval_image_size = FLAGS.eval_image_size or network_fn.default_image_size
-
-    image = image_preprocessing_fn(image, eval_image_size, eval_image_size)
+    
+    if type(eval_image_size) == int:
+      eval_image_size=[eval_image_size, eval_image_size]
+    image = image_preprocessing_fn(image, eval_image_size[0], eval_image_size[1])
 
     images, labels = tf.train.batch(
         [image, label],

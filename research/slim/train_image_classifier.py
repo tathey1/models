@@ -461,9 +461,13 @@ def main(_):
       label -= FLAGS.labels_offset
 
       train_image_size = FLAGS.train_image_size or network_fn.default_image_size
-
-      image = image_preprocessing_fn(image, train_image_size, train_image_size)
-
+      
+      if type(train_image_size) == int:
+        train_image_size = [train_image_size,train_image_size]
+      image = image_preprocessing_fn(image, train_image_size[0],
+                                     train_image_size[1])
+      
+      
       images, labels = tf.train.batch(
           [image, label],
           batch_size=FLAGS.batch_size,
