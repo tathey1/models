@@ -59,7 +59,8 @@ def _calculate_stds(array):
   del rgb
   print('LMS')
   print(lms[:,0])
-  log_lms = np.log(lms)
+  c = np.log(10)
+  log_lms = np.log(lms)/c
   del lms
   print('Log LMS')
   print(log_lms[:,0])
