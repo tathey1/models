@@ -124,7 +124,22 @@ def run(dataset_dir):
 	end_ndx = _NUM_VALIDATION + _NUM_TRAIN
 	validation_filenames = photo_filenames[_NUM_TRAIN:end_ndx]
 	testing_filenames = photo_filenames[end_ndx:]
-	
+        
+        path = os.path.join(dataset_dir,'pathology_splits.txt')
+        print('Creating file: ' + path)
+        f = open(path,'w+')
+        	
+        f.write('Training Files:\n')
+        for training_filename in training_filenames:
+          f.write(training_filename + '\n')
+        
+        f.write('Validation Files:\n')
+        for validation_filename in validation_filenames:
+          f.write(validation_filename + '\n')
+        f.write('Testing Files:\n')
+        for testing_filename in testing_filenames:
+          f.write(testing_filename + '\n')
+
 	_convert_dataset('train', training_filenames, class_names_to_ids, dataset_dir)
 	_convert_dataset('validation', validation_filenames, class_names_to_ids, dataset_dir)
 	_convert_dataset('test', testing_filenames, class_names_to_ids, dataset_dir)

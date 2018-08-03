@@ -25,7 +25,7 @@ from preprocessing import preprocessing_factory
 slim = tf.contrib.slim
 
 tf.app.flags.DEFINE_integer(
-    'batch_size', 200, 'The number of samples in each batch.')
+    'batch_size', 5, 'The number of samples in each batch.')
 
 tf.app.flags.DEFINE_integer(
     'num_preprocessing_threads', 4,
@@ -101,9 +101,11 @@ def main(_):
                               num_threads=FLAGS.num_preprocessing_threads,
                               capacity=5*FLAGS.batch_size)
     
-   
+    print(images)
     stds = compute_stds(tf.cast(images, dtype=tf.float32))
     with tf.Session() as sess:
+      coord = tf.train.Coordinator()
+      threads = tf.train.start_queue_runners(sess=sess, coord=coord)
       print(stds.eval())
 
 if __name__ == '__main__':
