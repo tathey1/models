@@ -282,9 +282,8 @@ def resnet_v1_pathology(inputs,
               raise ValueError('The output_stride needs to be a multiple of 4.')
             output_stride /= 4
           #tiling
-          net = _tile_images(net,num_images)
+          net = _tile_images_2res(net,num_images)
           
-          #*********************Code here should reshape the tiles somehow
           net = resnet_utils.conv2d_same(net, 64, 7, stride=2, scope='conv1')
           net = slim.max_pool2d(net, [3, 3], stride=2, scope='pool1')
         net = resnet_utils.stack_blocks_dense(net, blocks, output_stride,
@@ -298,8 +297,8 @@ def resnet_v1_pathology(inputs,
           net = tf.reduce_mean(net, [1, 2], name='pool5', keep_dims=True)
           end_points['global_pool'] = net
 
-
-        net = _max_tile(net,num_images)
+        #max
+        net = _max_tile_2res(net,num_images)
 
         if num_classes:
           #first fully connected layer
@@ -319,15 +318,15 @@ def resnet_v1_pathology(inputs,
             end_points[sc.name + '/spatial_squeeze'] = net
           end_points['predictions'] = slim.softmax(net, scope='predictions')
         return net, end_points
-resnet_v1_pathology.default_image_size = [1568, 2240]
+resnet_v1_pathology.default_image_size = [1536, 2048]
 
 def _tile_images(images,num_images):
   """Turns each image into a batch of tiles
   Args:
-  images = [batch, height_in, width_in, channels]
+  images = [batch, 1568, 2240, channels]
 
   Return:
-  tiles = [batch*num_tiles,height_in, width_in, channels]
+  tiles = [batch*num_tiles,224, 224, channels]
   """
   if images.shape[1] != 1568 or images.shape[2] != 2240:
     raise ValueError('Image to be tiled was not 1568x2240, instead it was: '
@@ -346,8 +345,81 @@ def _tile_images(images,num_images):
   for im in tile_1:
     temp = tf.split(im,10,2) #**************hardoded 10
     tile_2[counter] = tf.concat(temp,0)
-    counter+=1
+    counter+=1 
   return tf.concat(tile_2,0)
+
+def _tile_images_2res(images, num_images):
+  """Turns each image into a batch of tiles taken from 2 resolutions
+  Args:
+  images = [batch, 1536, 2048, channels]
+
+  Returns:
+  tiles = [batch*(19*14+5*4), 224, 224, channels]
+  """
+  if images.shape[1] != 1536 or images.shape[2] != 2048:
+    raise ValueError('Image to be tiled was not 1536x2048, instead it was: '
+                     + images.shape[1] + 'x' + images.shape[2])
+
+  im_list = tf.split(images,num_images,0)
+  
+  counter=0
+  for im in im_list:
+    tiles1 = _tile_res1(im)
+    tiles2 = _tile_res2(im)
+    im_list[counter] = tf.concat([tiles1,tiles2],0)
+    counter+=1
+
+  return tf.concat(im_list,0)
+
+def _tile_res1(image):
+  """
+  Tile at the finer resolution
+  
+  Args: Tensor of shape [1,1536, 2048,3]
+  Returns: Tensor of shape [19*14,224, 224,3]
+  """
+  pad = tf.stack([[0,0],[0,32],[0,80],[0,0]])
+  image = tf.pad(image, pad, "CONSTANT")
+  channels = tf.split(image,image.shape[3],3)
+  del image
+  counter=0
+  for channel in channels:
+    tiles = tf.extract_image_patches(channel, ksizes=[1,224,224,1],
+                                     strides=[1,112,112,1],rates=[1,1,1,1],
+                                     padding="VALID")
+    num_tiles = tiles.shape[1]*tiles.shape[2]
+    tiles = tf.reshape(tiles,[num_tiles,1,1,tiles.shape[3]])
+    tiles = tf.reshape(tiles,[num_tiles,224,224,1])
+    channels[counter] = tiles
+    counter+=1  
+
+  return tf.concat(channels,3)
+
+def _tile_res2(image):
+  """
+  Tile at the coarser resolution (4x coarser)
+  
+  Args: Tensor of shape [1,1536, 2048,3]
+  Returns: Tensor of shape [5*4,224,224,3]
+  """
+  image = tf.image.resize_images(image, [384,512])
+  pad = tf.stack([[0,0],[0,64],[0,48],[0,0]])
+  image = tf.pad(image, pad, "CONSTANT")
+
+  counter=0
+  channels = tf.split(image,image.shape[3],3)
+  del image
+  for channel in channels:
+    tiles = tf.extract_image_patches(channel, ksizes=[1,224,224,1],
+                                     strides=[1,112,112,1],rates=[1,1,1,1],
+                                     padding="VALID")
+    
+    num_tiles = tiles.shape[1]*tiles.shape[2]  
+    tiles = tf.reshape(tiles,[num_tiles, 1,1, tiles.shape[3]])
+    tiles = tf.reshape(tiles,[num_tiles,224,224,1])
+    channels[counter] = tiles
+    counter+=1
+  return tf.concat(channels,3)
 
 def _max_tile(results, num_images):
   list_images = tf.split(results, num_images,0)
@@ -357,6 +429,25 @@ def _max_tile(results, num_images):
     maxed[counter] = tf.reduce_max(im,axis=0,keepdims=True)
     counter+=1
   return tf.concat(maxed,0)
+
+def _max_tile_2res(results, num_images):
+  """
+  Finds the max features for the 2 resolutions
+
+  Args: [num_images*(19*14+5*4),1,1,2048]
+  Returns: [num_images,1,1,4096]
+  """
+  list_images = tf.split(results, num_images,0)
+  del results
+  counter=0
+  for im in list_images:
+    res1, res2 = tf.split(im,[234,12],0) #hardcoded
+    max1 = tf.reduce_max(res1,axis=0,keepdims=True)
+    max2 = tf.reduce_max(res2,axis=0,keepdims=True)
+    list_images[counter] = tf.concat([max1,max2],3)
+    counter += 1
+
+  return tf.concat(list_images,0)
 
 def resnet_v1_block(scope, base_depth, num_units, stride):
   """Helper function for creating a resnet_v1 bottleneck block.

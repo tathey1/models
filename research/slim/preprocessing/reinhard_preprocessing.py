@@ -45,8 +45,13 @@ def _color_normalize(image, stds_t):
   
   #modify lab values
   means,var = tf.nn.moments(image, axes=[1])
+  means = tf.expand_dims(means,1)
+  var = tf.expand_dims(var,1)
+
   image = tf.subtract(image,means)
   stds_i = tf.sqrt(var)
+
+
   coeffs = tf.div(stds_t,stds_i)
   image = tf.multiply(image, coeffs)
   image = tf.add(image,means)
@@ -117,16 +122,20 @@ def resize(image):
   return tf.pad(image,paddings, "CONSTANT")
 
 def preprocess_for_train(image, output_height, output_width):
+  stds_t = tf.constant([_l_std, _a_std,_b_std],shape=[3,1])
+  image.set_shape([1536,2048,3])
   image = tf.to_float(image)
-  image = _color_normalize(image,[_l_std, _a_std, _b_std])
-  image = resize(image)
+  image = _color_normalize(image,stds_t)
+  #image = resize(image)
   image.set_shape([output_height, output_width, 3])
   return image
 
 def preprocess_for_eval(image, output_height, output_width):
+  stds_t = tf.constant([_l_std, _a_std,_b_std],shape=[3,1])
+  image.set_shape([1536,2048,3]) #hardcoded
   image = tf.to_float(image)
-  image = _color_normalize(image, [_l_std, _a_std, _b_std])
-  image = resize(image)
+  image = _color_normalize(image, stds_t)
+  #image = resize(image)
   image.set_shape([output_height, output_width,3])
   return image
 
