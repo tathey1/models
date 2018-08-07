@@ -4,7 +4,7 @@ DATASET_DIR=/workspace/data/Part-A_Originaljpeg/
 TRAIN_DIR=/workspace/results/MCXval/checkpoints/
 EVAL_DIR=/workspace/results/MCXval/eval_logs/
 
-for i in `seq 1 1`;
+for i in `seq 1 100`;
 do
 	echo "Removing files from $TRAIN_DIR"
 	rm ${TRAIN_DIR}*
@@ -27,7 +27,7 @@ do
 	--checkpoint_exclude_scopes=resnet_v1_50_pathology_benchmark/logits,resnet_v1_50_pathology_benchmark/fc1 \
 	--trainable_scopes=resnet_v1_50_pathology_benchmark/logits,resnet_v1_50_pathology_benchmark/fc1 \
 	--map_checkpoint=True \
-	--max_number_of_steps 1
+	--max_number_of_steps 10000
 	
 	echo "***********************************Evaluating $i************************************"
 	CHECKPOINT_PATH=${TRAIN_DIR}model.ckpt-1
