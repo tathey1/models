@@ -18,7 +18,7 @@ slim = tf.contrib.slim
 
 _FILE_PATTERN = 'pathology_%s_*.tfrecord'
 
-SPLITS_TO_SIZES = {'train': 200, 'validation': 100, 'test': 100}
+SPLITS_TO_SIZES = {'train': 360, 'validation': 40}
 
 _NUM_CLASSES = 4
 

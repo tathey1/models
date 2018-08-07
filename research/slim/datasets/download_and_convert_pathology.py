@@ -26,8 +26,8 @@ import tensorflow as tf
 from datasets import dataset_utils
 from datasets.download_and_convert_flowers import ImageReader
 
-_NUM_VALIDATION = 100
-_NUM_TRAIN = 200
+_NUM_VALIDATION = 40
+_NUM_TRAIN = 360
 _RANDOM_SEED = 0
 _NUM_SHARDS = 1
 
@@ -69,7 +69,7 @@ def _convert_dataset(split_name, filenames, class_names_to_ids, dataset_dir):
 	to ids (integers).
 	dataset_dir: the directory where the converted datasets are stored.
 	"""
-	assert split_name in ['train','validation','test']
+	assert split_name in ['train','validation']#,'test']
 
 	num_per_shard = int(math.ceil(len(filenames) / float(_NUM_SHARDS)))
 	
@@ -121,9 +121,7 @@ def run(dataset_dir):
 	random.seed(_RANDOM_SEED)
 	random.shuffle(photo_filenames)
 	training_filenames = photo_filenames[:_NUM_TRAIN]
-	end_ndx = _NUM_VALIDATION + _NUM_TRAIN
-	validation_filenames = photo_filenames[_NUM_TRAIN:end_ndx]
-	testing_filenames = photo_filenames[end_ndx:]
+	validation_filenames = photo_filenames[_NUM_TRAIN:]
         
         path = os.path.join(dataset_dir,'pathology_splits.txt')
         print('Creating file: ' + path)
@@ -136,13 +134,13 @@ def run(dataset_dir):
         f.write('Validation Files:\n')
         for validation_filename in validation_filenames:
           f.write(validation_filename + '\n')
-        f.write('Testing Files:\n')
-        for testing_filename in testing_filenames:
-          f.write(testing_filename + '\n')
+        #f.write('Testing Files:\n')
+        #for testing_filename in testing_filenames:
+        #  f.write(testing_filename + '\n')
 
 	_convert_dataset('train', training_filenames, class_names_to_ids, dataset_dir)
 	_convert_dataset('validation', validation_filenames, class_names_to_ids, dataset_dir)
-	_convert_dataset('test', testing_filenames, class_names_to_ids, dataset_dir)
+#	_convert_dataset('test', testing_filenames, class_names_to_ids, dataset_dir)
 	
 	labels_to_class_names = dict(zip(range(len(class_names)), class_names))
 	dataset_utils.write_label_file(labels_to_class_names, dataset_dir)
