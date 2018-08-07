@@ -306,7 +306,7 @@ def resnet_v1_pathology(inputs,
                             normalizer_fn=None, scope='fc1')
           end_points[sc.name + '/fc1'] = net
           #dropout
-          net = slim.dropout(net, keep_prob=0.8,scope='dropout')
+          net = slim.dropout(net, keep_prob=0.8,scope='dropout',is_training=is_training)
           end_points[sc.name + '/dropout'] = net
           #final fully connected layer
           net = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
