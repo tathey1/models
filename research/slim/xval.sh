@@ -3,7 +3,7 @@ DATASET_DIR=/workspace/data/Part-A_Originaljpeg/
 TRAIN_DIR=/workspace/results/Xval/train_logs/
 EVAL_DIR=/workspace/results/Xval/eval_logs/
 
-for i in `seq 1 10`;
+for i in `seq 0 9`;
 do
 	echo "**************************************Iteration $i******************************************"
 	TRAIN_DIR=/workspace/results/Xval/train_logs/val_${i}/
@@ -17,7 +17,7 @@ do
         --train_dir=$TRAIN_DIR --dataset_dir=$DATASET_DIR --dataset_name=pathology \
         --dataset_split=$SPLIT --model_name=resnet_v1_50_pathology_benchmark \
         --checkpoint_path=$CHECKPOINT_PATH \
-        --batch_size 2 --learning_rate=0.000625 --end_learning_rate=0.00000625 --num_clones=1 \
+        --batch_size 2 --learning_rate=0.000625 --end_learning_rate=0.00000625 --num_clones=3 \
         --checkpoint_exclude_scopes=resnet_v1_50_pathology_benchmark/logits,resnet_v1_50_pathology_benchmark/fc1 \
         --trainable_scopes=resnet_v1_50_pathology_benchmark/logits,resnet_v1_50_pathology_benchmark/fc1 \
         --map_checkpoint=True \
