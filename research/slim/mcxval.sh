@@ -30,7 +30,7 @@ do
 	--max_number_of_steps 10000
 	
 	echo "***********************************Evaluating $i************************************"
-	CHECKPOINT_PATH=${TRAIN_DIR}model.ckpt-1
+	CHECKPOINT_PATH=${TRAIN_DIR}model.ckpt-10000
 	CUDA_VISIBLE_DEVICES=0 python eval_image_classifier.py --alsologtostderr --batch_size=2 \
 	--checkpoint_path=$CHECKPOINT_PATH --dataset_dir=$DATASET_DIR \
 	--eval_dir=$EVAL_DIR \

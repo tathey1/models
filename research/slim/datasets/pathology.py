@@ -43,7 +43,7 @@ def get_split(split_name, dataset_dir, file_pattern=None, reader=None):
 	Raises:
 	ValueError: if 'split_name' is not a valid train/validation/test split.
 	"""
-	if split_name not in SPLITS_TO_SIZES:
+	if split_name not in SPLITS_TO_SIZES and split_name[:-2] not in SPLITS_TO_SIZES:
 		raise ValueError('split name %s was not recognized.' % split_name)
 
 	if not file_pattern:
