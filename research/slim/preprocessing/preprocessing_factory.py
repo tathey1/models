@@ -29,13 +29,14 @@ from preprocessing import reinhard_preprocessing
 slim = tf.contrib.slim
 
 
-def get_preprocessing(name, is_training=False):
+def get_preprocessing(name,txt_file, is_training=False):
   """Returns preprocessing_fn(image, height, width, **kwargs).
 
   Args:
     name: The name of the preprocessing function.
     is_training: `True` if the model is being used for training and `False`
       otherwise.
+    txt_file is used for calculating training stds for reinhard preprocessing
 
   Returns:
     preprocessing_fn: A function that preprocessing a single image (pre-batch).
@@ -82,7 +83,11 @@ def get_preprocessing(name, is_training=False):
     raise ValueError('Preprocessing name [%s] was not recognized' % name)
 
   def preprocessing_fn(image, output_height, output_width, **kwargs):
-    return preprocessing_fn_map[name].preprocess_image(
-        image, output_height, output_width, is_training=is_training, **kwargs)
+    if name == "resnet_v1_50_pathology_benchmark":
+      return preprocessing_fn_map[name].preprocess_image(
+        image, output_height, output_width, is_training=is_training,txt_file=txt_file, **kwargs)
+    else:
+      return preprocessing_fn_map[name].preprocess_image(
+          image, output_height, output_width, is_training=is_training, **kwargs)
 
   return preprocessing_fn

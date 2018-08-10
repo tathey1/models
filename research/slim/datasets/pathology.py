@@ -49,8 +49,6 @@ def get_split(split_name, dataset_dir, file_pattern=None, reader=None):
 	if not file_pattern:
 		file_pattern = _FILE_PATTERN
 	file_pattern = os.path.join(dataset_dir, file_pattern % split_name)
-	print('******************************************************')
-	print(file_pattern)
 	#Allowing None in the signature so that the dataset_factory can use the default
 	if reader is None:
 		reader = tf.TFRecordReader

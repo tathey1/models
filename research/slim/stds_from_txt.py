@@ -14,6 +14,8 @@ import numpy as np
 from scipy import ndimage
 
 def stds(filename):
+  print('Calculating lab stds...')
+  print('Reading training images from ' + filename)
   files = _get_filenames(filename)
   array = _read_images(files)
   stds = _calculate_stds(array)
@@ -32,7 +34,6 @@ def _get_filenames(filename):
 def _read_images(files):
   
   for i in range(len(files)):
-    print(i)
     im = ndimage.imread(files[i])
     im = np.expand_dims(im,axis=0)
     if i==0:
@@ -52,22 +53,14 @@ def _calculate_stds(array):
   print('Reshaping...')
   rgb = np.moveaxis(array, 3, 0)
   rgb = np.reshape(rgb, (3,-1))
-  print('RGB')
-  print(rgb[:,0])
   print('Converting to lab...')
   lms = rgb2lms(rgb)
   del rgb
-  print('LMS')
-  print(lms[:,0])
   c = np.log(10)
   log_lms = np.log(lms)/c
   del lms
-  print('Log LMS')
-  print(log_lms[:,0])
   lab = lms2lab(log_lms)
   del log_lms
-  print('LAB')
-  print(lab[0,:])
   print('Computing Standard deviations...')
   return np.std(lab, axis=1)
 

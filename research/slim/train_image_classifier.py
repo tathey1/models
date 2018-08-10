@@ -443,9 +443,10 @@ def main(_):
     #####################################
     # Select the preprocessing function #
     #####################################
+    txt_file = FLAGS.dataset_dir + FLAGS.dataset_name + '_splits_' + FLAGS.dataset_split_name[-1] + '.txt'
     preprocessing_name = FLAGS.preprocessing_name or FLAGS.model_name
     image_preprocessing_fn = preprocessing_factory.get_preprocessing(
-        preprocessing_name,
+        preprocessing_name,txt_file=txt_file,
         is_training=True)
 
     ##############################################################

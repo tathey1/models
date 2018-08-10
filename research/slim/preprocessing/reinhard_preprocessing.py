@@ -14,15 +14,12 @@ Applied Perception Sept/Oct 2001
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+from stds_from_txt import stds
 
 import tensorflow as tf
 import math
 
 slim = tf.contrib.slim
-
-_l_std = 0.19907211
-_a_std = 0.06832892
-_b_std = 0.00791197
 
 def _color_normalize(image, stds_t):
   """Color normalize via Reinhard method
@@ -121,8 +118,7 @@ def resize(image):
   paddings = tf.stack([[0,32],[0,192],[0,0]]) #hardvoded
   return tf.pad(image,paddings, "CONSTANT")
 
-def preprocess_for_train(image, output_height, output_width):
-  stds_t = tf.constant([_l_std, _a_std,_b_std],shape=[3,1])
+def preprocess_for_train(image, output_height, output_width, stds_t):
   image.set_shape([1536,2048,3])
   image = tf.to_float(image)
   image = _color_normalize(image,stds_t)
@@ -130,8 +126,7 @@ def preprocess_for_train(image, output_height, output_width):
   image.set_shape([output_height, output_width, 3])
   return image
 
-def preprocess_for_eval(image, output_height, output_width):
-  stds_t = tf.constant([_l_std, _a_std,_b_std],shape=[3,1])
+def preprocess_for_eval(image, output_height, output_width, stds_t):
   image.set_shape([1536,2048,3]) #hardcoded
   image = tf.to_float(image)
   image = _color_normalize(image, stds_t)
@@ -139,9 +134,11 @@ def preprocess_for_eval(image, output_height, output_width):
   image.set_shape([output_height, output_width,3])
   return image
 
-def preprocess_image(image, output_height, output_width, is_training=False):
+def preprocess_image(image, output_height, output_width,txt_file, is_training=False):
+  train_stds = stds(txt_file)
+  stds_t = tf.constant(train_stds, shape=[3,1], dtype='float32')
   if is_training:
-    return preprocess_for_train(image, output_height, output_width)
+    return preprocess_for_train(image, output_height, output_width, stds_t)
   else:
-    return preprocess_for_eval(image, output_height, output_width)
+    return preprocess_for_eval(image, output_height, output_width, stds_t)
 

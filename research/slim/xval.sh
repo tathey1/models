@@ -1,12 +1,13 @@
 #!/bin/bash
+NUM_STEPS=15000
 DATASET_DIR=/workspace/data/Part-A_Originaljpeg/
-TRAIN_DIR=/workspace/results/Xval2/train_logs/
-EVAL_DIR=/workspace/results/Xval2/eval_logs/
+TRAIN_DIR=/workspace/results/xval_test/train_logs/
+EVAL_DIR=/workspace/results/xval_test/eval_logs/
 
 for i in `seq 0 9`;
 do
 	echo "**************************************Iteration $i******************************************"
-	TRAIN_DIR=/workspace/results/Xval2/train_logs/val_${i}/
+	TRAIN_DIR=/workspace/results/xval_test/train_logs/val_${i}/
 	echo "Making $TRAIN_DIR"
 	mkdir $TRAIN_DIR
         
@@ -21,10 +22,10 @@ do
         --checkpoint_exclude_scopes=resnet_v1_50_pathology_benchmark/logits,resnet_v1_50_pathology_benchmark/fc1 \
         --trainable_scopes=resnet_v1_50_pathology_benchmark/logits,resnet_v1_50_pathology_benchmark/fc1 \
         --map_checkpoint=True \
-        --max_number_of_steps 8000
+        --max_number_of_steps $NUM_STEPS
 
         echo "***********************************Evaluating $i************************************"
-        CHECKPOINT_PATH=${TRAIN_DIR}model.ckpt-8000
+        CHECKPOINT_PATH=${TRAIN_DIR}model.ckpt-$NUM_STEPS
 	SPLIT=validation_$i
         CUDA_VISIBLE_DEVICES=0 python eval_image_classifier.py --alsologtostderr --batch_size=2 \
         --checkpoint_path=$CHECKPOINT_PATH --dataset_dir=$DATASET_DIR \
