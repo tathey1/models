@@ -14,6 +14,7 @@ import numpy as np
 from scipy import ndimage
 
 def stds(filename):
+  return [0.19364001, 0.06658658, 0.00756792] #hardcoded for train_0
   print('Calculating lab stds...')
   print('Reading training images from ' + filename)
   files = _get_filenames(filename)

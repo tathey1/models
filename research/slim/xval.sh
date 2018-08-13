@@ -4,7 +4,7 @@ DATASET_DIR=/workspace/data/Part-A_Originaljpeg/
 TRAIN_DIR=/workspace/results/xval_test/train_logs/
 EVAL_DIR=/workspace/results/xval_test/eval_logs/
 
-for i in `seq 0 9`;
+for i in `seq 4 5`;
 do
 	echo "**************************************Iteration $i******************************************"
 	TRAIN_DIR=/workspace/results/xval_test/train_logs/val_${i}/

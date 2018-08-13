@@ -20,7 +20,7 @@ from __future__ import print_function
 
 import math
 import tensorflow as tf
-
+import numpy as np
 from datasets import dataset_factory
 from nets import nets_factory
 from preprocessing import preprocessing_factory
@@ -152,20 +152,33 @@ def main(_):
 
     predictions = tf.argmax(logits, 1)
     labels = tf.squeeze(labels)
+    
+    labels2 = tf.one_hot(labels,depth=dataset.num_classes)
+    probs = tf.nn.softmax(logits)
+    thresholds = range(100)
+    thresholds = [float(i)/100 for i in thresholds]    
+
 
     # Define the metrics:
     names_to_values, names_to_updates = slim.metrics.aggregate_metric_map({
         'Accuracy': slim.metrics.streaming_accuracy(predictions, labels),
         'Recall_2': slim.metrics.streaming_recall_at_k(
             logits, labels, 2),
+        'AUC': slim.metrics.streaming_dynamic_auc(probs, labels2),
     })
 
     # Print the summaries to screen.
     for name, value in names_to_values.items():
-      summary_name = 'eval/%s' % name
-      op = tf.summary.scalar(summary_name, value, collections=[])
-      op = tf.Print(op, [value], summary_name)
-      tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
+      if name != 'ROC':
+        summary_name = 'eval/%s' % name
+        op = tf.summary.scalar(summary_name, value, collections=[])
+        op = tf.Print(op, [value], summary_name)
+        tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
+      else:
+        summary_name = 'eval/%s' % name
+        op = tf.summary.tensor_summary(summary_name, value, collections=[])
+        op = tf.Print(op, [value], summary_name,summarize=101) 
+        tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
 
     # TODO(sguada) use num_epochs=1
     if FLAGS.max_num_batches:
@@ -180,6 +193,7 @@ def main(_):
       checkpoint_path = FLAGS.checkpoint_path
 
     tf.logging.info('Evaluating %s' % checkpoint_path)
+
 
     slim.evaluation.evaluate_once(
         master=FLAGS.master,
