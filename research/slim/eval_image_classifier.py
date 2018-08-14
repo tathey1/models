@@ -20,7 +20,7 @@ from __future__ import print_function
 
 import math
 import tensorflow as tf
-
+import numpy as np
 from datasets import dataset_factory
 from nets import nets_factory
 from preprocessing import preprocessing_factory
@@ -118,14 +118,17 @@ def main(_):
     #####################################
     # Select the preprocessing function #
     #####################################
+    txt_file= FLAGS.dataset_dir + FLAGS.dataset_name + '_splits_' + FLAGS.dataset_split_name[-1] + '.txt'
     preprocessing_name = FLAGS.preprocessing_name or FLAGS.model_name
     image_preprocessing_fn = preprocessing_factory.get_preprocessing(
-        preprocessing_name,
+        preprocessing_name,txt_file=txt_file,
         is_training=False)
 
     eval_image_size = FLAGS.eval_image_size or network_fn.default_image_size
-
-    image = image_preprocessing_fn(image, eval_image_size, eval_image_size)
+    
+    if type(eval_image_size) == int:
+      eval_image_size=[eval_image_size, eval_image_size]
+    image = image_preprocessing_fn(image, eval_image_size[0], eval_image_size[1])
 
     images, labels = tf.train.batch(
         [image, label],
@@ -149,20 +152,33 @@ def main(_):
 
     predictions = tf.argmax(logits, 1)
     labels = tf.squeeze(labels)
+    
+    labels2 = tf.one_hot(labels,depth=dataset.num_classes)
+    probs = tf.nn.softmax(logits)
+    thresholds = range(100)
+    thresholds = [float(i)/100 for i in thresholds]    
+
 
     # Define the metrics:
     names_to_values, names_to_updates = slim.metrics.aggregate_metric_map({
         'Accuracy': slim.metrics.streaming_accuracy(predictions, labels),
-        'Recall_5': slim.metrics.streaming_recall_at_k(
-            logits, labels, 5),
+        'Recall_2': slim.metrics.streaming_recall_at_k(
+            logits, labels, 2),
+        'AUC': slim.metrics.streaming_dynamic_auc(probs, labels2),
     })
 
     # Print the summaries to screen.
     for name, value in names_to_values.items():
-      summary_name = 'eval/%s' % name
-      op = tf.summary.scalar(summary_name, value, collections=[])
-      op = tf.Print(op, [value], summary_name)
-      tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
+      if name != 'ROC':
+        summary_name = 'eval/%s' % name
+        op = tf.summary.scalar(summary_name, value, collections=[])
+        op = tf.Print(op, [value], summary_name)
+        tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
+      else:
+        summary_name = 'eval/%s' % name
+        op = tf.summary.tensor_summary(summary_name, value, collections=[])
+        op = tf.Print(op, [value], summary_name,summarize=101) 
+        tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
 
     # TODO(sguada) use num_epochs=1
     if FLAGS.max_num_batches:
@@ -177,6 +193,7 @@ def main(_):
       checkpoint_path = FLAGS.checkpoint_path
 
     tf.logging.info('Evaluating %s' % checkpoint_path)
+
 
     slim.evaluation.evaluate_once(
         master=FLAGS.master,

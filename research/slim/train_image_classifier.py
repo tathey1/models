@@ -23,6 +23,7 @@ import tensorflow as tf
 from datasets import dataset_factory
 from deployment import model_deploy
 from nets import nets_factory
+from checkpoints import checkpoints_map
 from preprocessing import preprocessing_factory
 
 slim = tf.contrib.slim
@@ -223,6 +224,11 @@ tf.app.flags.DEFINE_boolean(
     'ignore_missing_vars', False,
     'When restoring a checkpoint would ignore missing variables.')
 
+tf.app.flags.DEFINE_boolean(
+    'map_checkpoint', False,
+    'use the file checkpoints/checkpoints_map to retrieve weights from '
+    'a different model.')
+
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -355,18 +361,29 @@ def _get_init_fn():
         break
     else:
       variables_to_restore.append(var)
-
+    
   if tf.gfile.IsDirectory(FLAGS.checkpoint_path):
     checkpoint_path = tf.train.latest_checkpoint(FLAGS.checkpoint_path)
   else:
     checkpoint_path = FLAGS.checkpoint_path
 
   tf.logging.info('Fine-tuning from %s' % checkpoint_path)
+  
 
-  return slim.assign_from_checkpoint_fn(
-      checkpoint_path,
-      variables_to_restore,
-      ignore_missing_vars=FLAGS.ignore_missing_vars)
+  if FLAGS.map_checkpoint:
+    print('Mapping Checkpoint to this model')
+    return slim.assign_from_checkpoint_fn(
+        checkpoint_path,
+        checkpoints_map.get_dict(variables_to_restore),
+        ignore_missing_vars=FLAGS.ignore_missing_vars)
+  else:
+    
+    for var in variables_to_restore:
+      print(var.name)
+    return slim.assign_from_checkpoint_fn(
+        checkpoint_path,
+        variables_to_restore,
+        ignore_missing_vars=FLAGS.ignore_missing_vars)
 
 
 def _get_variables_to_train():
@@ -381,6 +398,7 @@ def _get_variables_to_train():
     scopes = [scope.strip() for scope in FLAGS.trainable_scopes.split(',')]
 
   variables_to_train = []
+ 
   for scope in scopes:
     variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
     variables_to_train.extend(variables)
@@ -425,9 +443,10 @@ def main(_):
     #####################################
     # Select the preprocessing function #
     #####################################
+    txt_file = FLAGS.dataset_dir + FLAGS.dataset_name + '_splits_' + FLAGS.dataset_split_name[-1] + '.txt'
     preprocessing_name = FLAGS.preprocessing_name or FLAGS.model_name
     image_preprocessing_fn = preprocessing_factory.get_preprocessing(
-        preprocessing_name,
+        preprocessing_name,txt_file=txt_file,
         is_training=True)
 
     ##############################################################
@@ -443,9 +462,13 @@ def main(_):
       label -= FLAGS.labels_offset
 
       train_image_size = FLAGS.train_image_size or network_fn.default_image_size
-
-      image = image_preprocessing_fn(image, train_image_size, train_image_size)
-
+      
+      if type(train_image_size) == int:
+        train_image_size = [train_image_size,train_image_size]
+      image = image_preprocessing_fn(image, train_image_size[0],
+                                     train_image_size[1])
+      
+      
       images, labels = tf.train.batch(
           [image, label],
           batch_size=FLAGS.batch_size,
@@ -534,7 +557,7 @@ def main(_):
 
     # Variables to train.
     variables_to_train = _get_variables_to_train()
-
+    
     #  and returns a train_tensor and summary_op
     total_loss, clones_gradients = model_deploy.optimize_clones(
         clones,
@@ -559,7 +582,8 @@ def main(_):
 
     # Merge all summaries together.
     summary_op = tf.summary.merge(list(summaries), name='summary_op')
-
+     
+    
     ###########################
     # Kicks off the training. #
     ###########################

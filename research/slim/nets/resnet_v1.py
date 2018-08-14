@@ -51,6 +51,8 @@ ResNet-101 for semantic segmentation into 21 classes:
                                                 is_training=False,
                                                 global_pool=False,
                                                 output_stride=16)
+
+Modified on 7/30/18 by Thomas Athey to include the resnet_v1_50_pathology_benchmark network
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -254,6 +256,198 @@ def resnet_v1(inputs,
         return net, end_points
 resnet_v1.default_image_size = 224
 
+def resnet_v1_pathology(inputs,
+              blocks,
+              num_classes=None,
+              is_training=True,
+              global_pool=True,
+              output_stride=None,
+              include_root_block=True,
+              spatial_squeeze=True,
+              store_non_strided_activations=False,
+              reuse=None,
+              scope=None):
+  with tf.variable_scope(scope, 'resnet_v1_pathology', [inputs], reuse=reuse) as sc:
+    end_points_collection = sc.original_name_scope + '_end_points'
+    with slim.arg_scope([slim.conv2d, bottleneck,
+                         resnet_utils.stack_blocks_dense],
+                        outputs_collections=end_points_collection):
+      with (slim.arg_scope([slim.batch_norm], is_training=is_training)
+            if is_training is not None else NoOpScope()):
+        net = inputs
+        num_images = net.shape[0]
+        if include_root_block:
+          if output_stride is not None:
+            if output_stride % 4 != 0:
+              raise ValueError('The output_stride needs to be a multiple of 4.')
+            output_stride /= 4
+          #tiling
+          net = _tile_images_2res(net,num_images)
+          
+          net = resnet_utils.conv2d_same(net, 64, 7, stride=2, scope='conv1')
+          net = slim.max_pool2d(net, [3, 3], stride=2, scope='pool1')
+        net = resnet_utils.stack_blocks_dense(net, blocks, output_stride,
+                                              store_non_strided_activations)
+        # Convert end_points_collection into a dictionary of end_points.
+        end_points = slim.utils.convert_collection_to_dict(
+            end_points_collection)
+
+        if global_pool:
+          # Global average pooling.
+          net = tf.reduce_mean(net, [1, 2], name='pool5', keep_dims=True)
+          end_points['global_pool'] = net
+
+        #max
+        net = _max_tile_2res(net,num_images)
+
+        if num_classes:
+          #first fully connected layer
+          net = slim.conv2d(net, 512, [1,1], activation_fn=None,
+                            normalizer_fn=None, scope='fc1')
+          end_points[sc.name + '/fc1'] = net
+          #dropout
+          net = slim.dropout(net, keep_prob=0.8,scope='dropout',is_training=is_training)
+          end_points[sc.name + '/dropout'] = net
+          #final fully connected layer
+          net = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
+                            normalizer_fn=None, scope='logits')
+          end_points[sc.name + '/logits'] = net
+          if spatial_squeeze:
+            #remove dimensions of size 1
+            net = tf.squeeze(net, [1, 2], name='SpatialSqueeze')
+            end_points[sc.name + '/spatial_squeeze'] = net
+          end_points['predictions'] = slim.softmax(net, scope='predictions')
+        return net, end_points
+resnet_v1_pathology.default_image_size = [1536, 2048]
+
+def _tile_images(images,num_images):
+  """Turns each image into a batch of tiles
+  Args:
+  images = [batch, 1568, 2240, channels]
+
+  Return:
+  tiles = [batch*num_tiles,224, 224, channels]
+  """
+  if images.shape[1] != 1568 or images.shape[2] != 2240:
+    raise ValueError('Image to be tiled was not 1568x2240, instead it was: '
+                     + images.shape[1] + 'x' + images.shape[2])
+
+  im_list = tf.split(images,num_images,0)
+  tile_1 = im_list
+  counter=0
+  for im in im_list:
+    temp = tf.split(im,7,1) #************hardcoded number 7
+    tile_1[counter]=tf.concat(temp,0)
+    counter+=1
+
+  tile_2=im_list
+  counter=0
+  for im in tile_1:
+    temp = tf.split(im,10,2) #**************hardoded 10
+    tile_2[counter] = tf.concat(temp,0)
+    counter+=1 
+  return tf.concat(tile_2,0)
+
+def _tile_images_2res(images, num_images):
+  """Turns each image into a batch of tiles taken from 2 resolutions
+  Args:
+  images = [batch, 1536, 2048, channels]
+
+  Returns:
+  tiles = [batch*(19*14+5*4), 224, 224, channels]
+  """
+  if images.shape[1] != 1536 or images.shape[2] != 2048:
+    raise ValueError('Image to be tiled was not 1536x2048, instead it was: '
+                     + images.shape[1] + 'x' + images.shape[2])
+
+  im_list = tf.split(images,num_images,0)
+  
+  counter=0
+  for im in im_list:
+    tiles1 = _tile_res1(im)
+    tiles2 = _tile_res2(im)
+    im_list[counter] = tf.concat([tiles1,tiles2],0)
+    counter+=1
+
+  return tf.concat(im_list,0)
+
+def _tile_res1(image):
+  """
+  Tile at the finer resolution
+  
+  Args: Tensor of shape [1,1536, 2048,3]
+  Returns: Tensor of shape [19*14,224, 224,3]
+  """
+  pad = tf.stack([[0,0],[0,32],[0,80],[0,0]])
+  image = tf.pad(image, pad, "CONSTANT")
+  channels = tf.split(image,image.shape[3],3)
+  del image
+  counter=0
+  for channel in channels:
+    tiles = tf.extract_image_patches(channel, ksizes=[1,224,224,1],
+                                     strides=[1,112,112,1],rates=[1,1,1,1],
+                                     padding="VALID")
+    num_tiles = tiles.shape[1]*tiles.shape[2]
+    tiles = tf.reshape(tiles,[num_tiles,1,1,tiles.shape[3]])
+    tiles = tf.reshape(tiles,[num_tiles,224,224,1])
+    channels[counter] = tiles
+    counter+=1  
+
+  return tf.concat(channels,3)
+
+def _tile_res2(image):
+  """
+  Tile at the coarser resolution (4x coarser)
+  
+  Args: Tensor of shape [1,1536, 2048,3]
+  Returns: Tensor of shape [5*4,224,224,3]
+  """
+  image = tf.image.resize_images(image, [384,512])
+  pad = tf.stack([[0,0],[0,64],[0,48],[0,0]])
+  image = tf.pad(image, pad, "CONSTANT")
+
+  counter=0
+  channels = tf.split(image,image.shape[3],3)
+  del image
+  for channel in channels:
+    tiles = tf.extract_image_patches(channel, ksizes=[1,224,224,1],
+                                     strides=[1,112,112,1],rates=[1,1,1,1],
+                                     padding="VALID")
+    
+    num_tiles = tiles.shape[1]*tiles.shape[2]  
+    tiles = tf.reshape(tiles,[num_tiles, 1,1, tiles.shape[3]])
+    tiles = tf.reshape(tiles,[num_tiles,224,224,1])
+    channels[counter] = tiles
+    counter+=1
+  return tf.concat(channels,3)
+
+def _max_tile(results, num_images):
+  list_images = tf.split(results, num_images,0)
+  maxed = list_images
+  counter=0
+  for im in list_images:
+    maxed[counter] = tf.reduce_max(im,axis=0,keepdims=True)
+    counter+=1
+  return tf.concat(maxed,0)
+
+def _max_tile_2res(results, num_images):
+  """
+  Finds the max features for the 2 resolutions
+
+  Args: [num_images*(19*14+5*4),1,1,2048]
+  Returns: [num_images,1,1,4096]
+  """
+  list_images = tf.split(results, num_images,0)
+  del results
+  counter=0
+  for im in list_images:
+    res1, res2 = tf.split(im,[234,12],0) #hardcoded
+    max1 = tf.reduce_max(res1,axis=0,keepdims=True)
+    max2 = tf.reduce_max(res2,axis=0,keepdims=True)
+    list_images[counter] = tf.concat([max1,max2],3)
+    counter += 1
+
+  return tf.concat(list_images,0)
 
 def resnet_v1_block(scope, base_depth, num_units, stride):
   """Helper function for creating a resnet_v1 bottleneck block.
@@ -301,6 +495,29 @@ def resnet_v1_50(inputs,
                    store_non_strided_activations=store_non_strided_activations,
                    reuse=reuse, scope=scope)
 resnet_v1_50.default_image_size = resnet_v1.default_image_size
+
+#Identical to resnet_v1_50 except uses resnet_v1_pathology
+def resnet_v1_50_pathology_benchmark(inputs,
+					num_classes=None,
+					is_training=True,
+					global_pool=True,
+					output_stride=None,
+					spatial_squeeze=True,
+					store_non_strided_activations=False,
+					reuse=None,
+					scope='resnet_v1_50_pathology_benchmark'):
+  blocks = [
+      resnet_v1_block('block1', base_depth=64, num_units=3, stride=2),
+      resnet_v1_block('block2', base_depth=128, num_units=4, stride=2),
+      resnet_v1_block('block3', base_depth=256, num_units=6, stride=2),
+      resnet_v1_block('block4', base_depth=512, num_units=3, stride=1),
+  ]
+  return resnet_v1_pathology(inputs, blocks, num_classes, is_training,
+                   global_pool=global_pool, output_stride=output_stride,
+                   include_root_block=True, spatial_squeeze=spatial_squeeze,
+                   store_non_strided_activations=store_non_strided_activations,
+                   reuse=reuse, scope=scope)
+resnet_v1_50_pathology_benchmark.default_image_size = resnet_v1_pathology.default_image_size
 
 
 def resnet_v1_101(inputs,

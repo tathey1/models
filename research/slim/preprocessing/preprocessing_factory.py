@@ -24,17 +24,19 @@ from preprocessing import cifarnet_preprocessing
 from preprocessing import inception_preprocessing
 from preprocessing import lenet_preprocessing
 from preprocessing import vgg_preprocessing
+from preprocessing import reinhard_preprocessing
 
 slim = tf.contrib.slim
 
 
-def get_preprocessing(name, is_training=False):
+def get_preprocessing(name,txt_file, is_training=False):
   """Returns preprocessing_fn(image, height, width, **kwargs).
 
   Args:
     name: The name of the preprocessing function.
     is_training: `True` if the model is being used for training and `False`
       otherwise.
+    txt_file is used for calculating training stds for reinhard preprocessing
 
   Returns:
     preprocessing_fn: A function that preprocessing a single image (pre-batch).
@@ -62,6 +64,7 @@ def get_preprocessing(name, is_training=False):
       'pnasnet_mobile': inception_preprocessing,
       'pnasnet_large': inception_preprocessing,
       'resnet_v1_50': vgg_preprocessing,
+      'resnet_v1_50_pathology_benchmark': reinhard_preprocessing,
       'resnet_v1_101': vgg_preprocessing,
       'resnet_v1_152': vgg_preprocessing,
       'resnet_v1_200': vgg_preprocessing,
@@ -73,13 +76,18 @@ def get_preprocessing(name, is_training=False):
       'vgg_a': vgg_preprocessing,
       'vgg_16': vgg_preprocessing,
       'vgg_19': vgg_preprocessing,
+      'reinhard' : reinhard_preprocessing,
   }
 
   if name not in preprocessing_fn_map:
     raise ValueError('Preprocessing name [%s] was not recognized' % name)
 
   def preprocessing_fn(image, output_height, output_width, **kwargs):
-    return preprocessing_fn_map[name].preprocess_image(
-        image, output_height, output_width, is_training=is_training, **kwargs)
+    if name == "resnet_v1_50_pathology_benchmark":
+      return preprocessing_fn_map[name].preprocess_image(
+        image, output_height, output_width, is_training=is_training,txt_file=txt_file, **kwargs)
+    else:
+      return preprocessing_fn_map[name].preprocess_image(
+          image, output_height, output_width, is_training=is_training, **kwargs)
 
   return preprocessing_fn
