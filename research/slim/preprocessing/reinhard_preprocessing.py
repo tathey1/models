@@ -122,7 +122,6 @@ def preprocess_for_train(image, output_height, output_width, stds_t):
   image.set_shape([1536,2048,3])
   image = tf.to_float(image)
   image = _color_normalize(image,stds_t)
-  #image = resize(image)
   image.set_shape([output_height, output_width, 3])
   return image
 
@@ -130,7 +129,6 @@ def preprocess_for_eval(image, output_height, output_width, stds_t):
   image.set_shape([1536,2048,3]) #hardcoded
   image = tf.to_float(image)
   image = _color_normalize(image, stds_t)
-  #image = resize(image)
   image.set_shape([output_height, output_width,3])
   return image
 
