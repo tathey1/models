@@ -29,7 +29,7 @@ from preprocessing import reinhard_preprocessing
 slim = tf.contrib.slim
 
 
-def get_preprocessing(name,txt_file, is_training=False):
+def get_preprocessing(name,txt_file=None, is_training=False):
   """Returns preprocessing_fn(image, height, width, **kwargs).
 
   Args:

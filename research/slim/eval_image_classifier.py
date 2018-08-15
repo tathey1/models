@@ -152,24 +152,54 @@ def main(_):
 
     predictions = tf.argmax(logits, 1)
     labels = tf.squeeze(labels)
+
+    labels_onehot = tf.one_hot(labels,depth=logits.shape[1])
+    labels_0 = tf.equal(labels,
+                        tf.constant(0,shape=labels.shape,dtype='int64'))
+    labels_1 = tf.equal(labels,
+                        tf.constant(1, shape=labels.shape,dtype='int64'))
+    labels_2 = tf.equal(labels,
+                        tf.constant(2, shape=labels.shape,dtype='int64'))
+    labels_3 = tf.equal(labels,
+                        tf.constant(3, shape=labels.shape,dtype='int64'))
     
-    labels2 = tf.one_hot(labels,depth=dataset.num_classes)
+
+
     probs = tf.nn.softmax(logits)
-    thresholds = range(100)
-    thresholds = [float(i)/100 for i in thresholds]    
+    probs_0 = tf.gather(probs,indices=0, 
+                        axis=1)
+    probs_1 = tf.gather(probs, indices=1,
+                        axis=1)
+    probs_2 = tf.gather(probs, indices=2,
+                        axis=1)
+    probs_3 = tf.gather(probs, indices=3,
+                        axis=1)
 
 
+
+
+    print(probs_0)
+    print(labels_0)
     # Define the metrics:
     names_to_values, names_to_updates = slim.metrics.aggregate_metric_map({
         'Accuracy': slim.metrics.streaming_accuracy(predictions, labels),
         'Recall_2': slim.metrics.streaming_recall_at_k(
             logits, labels, 2),
-        'AUC': slim.metrics.streaming_dynamic_auc(probs, labels2),
+        'AUC': slim.metrics.streaming_dynamic_auc(probs, labels_onehot),
+        'AUC0': slim.metrics.streaming_dynamic_auc(probs_0, labels_0),
+        'AUC1': slim.metrics.streaming_dynamic_auc(probs_1, labels_1),
+        'AUC2': slim.metrics.streaming_dynamic_auc(probs_2, labels_2),
+        'AUC3': slim.metrics.streaming_dynamic_auc(probs_3, labels_3),
+
+        'ROC0': slim.metrics.streaming_curve_points(labels_0, probs_0),
+        'ROC1': slim.metrics.streaming_curve_points(labels_1, probs_1),
+        'ROC2': slim.metrics.streaming_curve_points(labels_2, probs_2),
+        'ROC3': slim.metrics.streaming_curve_points(labels_3, probs_3),
     })
 
     # Print the summaries to screen.
     for name, value in names_to_values.items():
-      if name != 'ROC':
+      if 'ROC' not in name:
         summary_name = 'eval/%s' % name
         op = tf.summary.scalar(summary_name, value, collections=[])
         op = tf.Print(op, [value], summary_name)
@@ -177,7 +207,7 @@ def main(_):
       else:
         summary_name = 'eval/%s' % name
         op = tf.summary.tensor_summary(summary_name, value, collections=[])
-        op = tf.Print(op, [value], summary_name,summarize=101) 
+        #op = tf.Print(op, [value], summary_name,summarize=400) 
         tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
 
     # TODO(sguada) use num_epochs=1
