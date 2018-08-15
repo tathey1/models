@@ -114,7 +114,8 @@ def run(dataset_dir):
 
 	photo_filenames, class_names = _get_filenames_and_classes(dataset_dir)
 	class_names_to_ids = dict(zip(class_names, range(len(class_names))))
-
+        
+        
 	random.seed(_RANDOM_SEED)
 	random.shuffle(photo_filenames)
 	for split_num in range(10):

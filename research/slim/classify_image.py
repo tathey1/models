@@ -89,13 +89,13 @@ init_fn(sess)
 
 fout = sys.stdout
 if FLAGS.outfile is not None:
-  fout = open(FLAGS.outfile, 'w')
+  fout = open(FLAGS.outfile, 'a')
 h = ['image']
 h.extend(['class%s' % i for i in range(FLAGS.num_classes)])
 h.append('predicted_class')
 h.append('ground_truth_class')
 h.append('correct')
-print('\t'.join(h), file=fout)
+print('\t'.join(h))
 
 
 for fl in fls:
