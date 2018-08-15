@@ -64,6 +64,7 @@ def get_preprocessing(name,txt_file=None, is_training=False):
       'pnasnet_mobile': inception_preprocessing,
       'pnasnet_large': inception_preprocessing,
       'resnet_v1_50': vgg_preprocessing,
+      'resnet_v1_50_fc' : vgg_preprocessing,
       'resnet_v1_50_pathology_benchmark': reinhard_preprocessing,
       'resnet_v1_101': vgg_preprocessing,
       'resnet_v1_152': vgg_preprocessing,

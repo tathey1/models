@@ -18,7 +18,7 @@ def get_dict(variables_to_restore):
 		name = path_var.name
 		for path_var_rest in variables_to_restore:
 			if path_var_rest.name in name:
-				new_name = name.replace('_pathology_benchmark','')
+				new_name = name.replace('_fc','')
 				new_name = new_name[:-2] #remove the':0'
 				print('Moving: ' + new_name)
                                 print('to: ' + name)

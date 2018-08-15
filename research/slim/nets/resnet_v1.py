@@ -256,6 +256,61 @@ def resnet_v1(inputs,
         return net, end_points
 resnet_v1.default_image_size = 224
 
+def resnet_v1_fc(inputs,
+              blocks,
+              num_classes=None,
+              is_training=True,
+              global_pool=True,
+              output_stride=None,
+              include_root_block=True,
+              spatial_squeeze=True,
+              store_non_strided_activations=False,
+              reuse=None,
+              scope=None):
+  with tf.variable_scope(scope, 'resnet_v1_fc', [inputs], reuse=reuse) as sc:
+    end_points_collection = sc.original_name_scope + '_end_points'
+    with slim.arg_scope([slim.conv2d, bottleneck,
+                         resnet_utils.stack_blocks_dense],
+                        outputs_collections=end_points_collection):
+      with (slim.arg_scope([slim.batch_norm], is_training=is_training)
+            if is_training is not None else NoOpScope()):
+        net = inputs
+        if include_root_block:
+          if output_stride is not None:
+            if output_stride % 4 != 0:
+              raise ValueError('The output_stride needs to be a multiple of 4.')
+            output_stride /= 4
+          net = resnet_utils.conv2d_same(net, 64, 7, stride=2, scope='conv1')
+          net = slim.max_pool2d(net, [3, 3], stride=2, scope='pool1')
+        net = resnet_utils.stack_blocks_dense(net, blocks, output_stride,
+                                              store_non_strided_activations)
+        # Convert end_points_collection into a dictionary of end_points.
+        end_points = slim.utils.convert_collection_to_dict(
+            end_points_collection)
+
+        if global_pool:
+          # Global average pooling.
+          net = tf.reduce_mean(net, [1, 2], name='pool5', keep_dims=True)
+          end_points['global_pool'] = net
+        if num_classes:
+          #first fully connected layer
+          net = slim.conv2d(net, 512, [1,1], activation_fn=None,
+                            normalizer_fn=None, scope='fc1')
+          end_points[sc.name + '/fc1'] = net
+          #dropout
+          net = slim.dropout(net, keep_prob=0.8,scope='dropout',is_training=is_training)
+          end_points[sc.name + '/dropout'] = net
+          net = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
+                            normalizer_fn=None, scope='logits')
+          end_points[sc.name + '/logits'] = net
+          if spatial_squeeze:
+            net = tf.squeeze(net, [1, 2], name='SpatialSqueeze')
+            end_points[sc.name + '/spatial_squeeze'] = net
+          end_points['predictions'] = slim.softmax(net, scope='predictions')
+        return net, end_points
+resnet_v1_fc.default_image_size = 224
+
+
 def resnet_v1_pathology(inputs,
               blocks,
               num_classes=None,
@@ -495,6 +550,30 @@ def resnet_v1_50(inputs,
                    store_non_strided_activations=store_non_strided_activations,
                    reuse=reuse, scope=scope)
 resnet_v1_50.default_image_size = resnet_v1.default_image_size
+
+def resnet_v1_50_fc(inputs,
+                 num_classes=None,
+                 is_training=True,
+                 global_pool=True,
+                 output_stride=None,
+                 spatial_squeeze=True,
+                 store_non_strided_activations=False,
+                 reuse=None,
+                 scope='resnet_v1_50_fc'):
+  """ResNet-50 model of [1]. See resnet_v1() for arg and return description."""
+  blocks = [
+      resnet_v1_block('block1', base_depth=64, num_units=3, stride=2),
+      resnet_v1_block('block2', base_depth=128, num_units=4, stride=2),
+      resnet_v1_block('block3', base_depth=256, num_units=6, stride=2),
+      resnet_v1_block('block4', base_depth=512, num_units=3, stride=1),
+  ]
+  return resnet_v1_fc(inputs, blocks, num_classes, is_training,
+                   global_pool=global_pool, output_stride=output_stride,
+                   include_root_block=True, spatial_squeeze=spatial_squeeze,
+                   store_non_strided_activations=store_non_strided_activations,
+                   reuse=reuse, scope=scope)
+resnet_v1_50_fc.default_image_size = resnet_v1_fc.default_image_size
+
 
 #Identical to resnet_v1_50 except uses resnet_v1_pathology
 def resnet_v1_50_pathology_benchmark(inputs,
