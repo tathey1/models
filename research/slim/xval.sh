@@ -1,13 +1,12 @@
 #!/bin/bash
 NUM_STEPS=15000
 DATASET_DIR=/workspace/data/Part-A_Originaljpeg/
-TRAIN_DIR=/workspace/results/fc_xval_15000/train_logs/
 EVAL_DIR=/workspace/results/fc_xval_15000/eval_logs/
 
 for i in `seq 0 9`;
 do
 	echo "**************************************Iteration $i******************************************"
-	TRAIN_DIR=${TRAIN_DIR}val_${i}/
+	TRAIN_DIR=/workspace/results/fc_xval_15000/train_logs/val_${i}/
 	echo "Making $TRAIN_DIR"
 	mkdir $TRAIN_DIR
         
