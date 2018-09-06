@@ -18,7 +18,7 @@ NUM_STEPS=15000
 DATASET_DIR=/workspace/data/Part-A_Originaljpeg/
 EVAL_DIR=/workspace/results/xval_final_15000/eval_logs/
 
-for i in `seq 2 9`;
+for i in `seq 0 9`;
 do
 	echo "**************************************Iteration $i******************************************"
 	TRAIN_DIR=/workspace/results/xval_final_15000/train_logs/val_${i}/
