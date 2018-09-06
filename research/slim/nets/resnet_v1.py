@@ -375,6 +375,67 @@ def resnet_v1_pathology(inputs,
         return net, end_points
 resnet_v1_pathology.default_image_size = [1536, 2048]
 
+'''
+This network performs 2 resoltution tiling
+then uses resnet and a single fc layer to classify
+'''
+def resnet_v1_final(inputs,
+              blocks,
+              num_classes=None,
+              is_training=True,
+              global_pool=True,
+              output_stride=None,
+              include_root_block=True,
+              spatial_squeeze=True,
+              store_non_strided_activations=False,
+              reuse=None,
+              scope=None):
+  with tf.variable_scope(scope, 'resnet_v1_final', [inputs], reuse=reuse) as sc:
+    end_points_collection = sc.original_name_scope + '_end_points'
+    with slim.arg_scope([slim.conv2d, bottleneck,
+                         resnet_utils.stack_blocks_dense],
+                        outputs_collections=end_points_collection):
+      with (slim.arg_scope([slim.batch_norm], is_training=is_training)
+            if is_training is not None else NoOpScope()):
+        net = inputs
+        num_images = net.shape[0]
+        if include_root_block:
+          if output_stride is not None:
+            if output_stride % 4 != 0:
+              raise ValueError('The output_stride needs to be a multiple of 4.')
+            output_stride /= 4
+          #tiling
+          net = _tile_images_2res(net,num_images)
+          
+          net = resnet_utils.conv2d_same(net, 64, 7, stride=2, scope='conv1')
+          net = slim.max_pool2d(net, [3, 3], stride=2, scope='pool1')
+        net = resnet_utils.stack_blocks_dense(net, blocks, output_stride,
+                                              store_non_strided_activations)
+        # Convert end_points_collection into a dictionary of end_points.
+        end_points = slim.utils.convert_collection_to_dict(
+            end_points_collection)
+
+        if global_pool:
+          # Global average pooling.
+          net = tf.reduce_mean(net, [1, 2], name='pool5', keep_dims=True)
+          end_points['global_pool'] = net
+
+        #max
+        net = _max_tile_2res(net,num_images)
+
+        if num_classes:
+          #final fully connected layer
+          net = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
+                            normalizer_fn=None, scope='logits')
+          end_points[sc.name + '/logits'] = net
+          if spatial_squeeze:
+            #remove dimensions of size 1
+            net = tf.squeeze(net, [1, 2], name='SpatialSqueeze')
+            end_points[sc.name + '/spatial_squeeze'] = net
+          end_points['predictions'] = slim.softmax(net, scope='predictions')
+        return net, end_points
+resnet_v1_final.default_image_size = [1536, 2048]
+
 def _tile_images(images,num_images):
   """Turns each image into a batch of tiles
   Args:
@@ -598,6 +659,27 @@ def resnet_v1_50_pathology_benchmark(inputs,
                    reuse=reuse, scope=scope)
 resnet_v1_50_pathology_benchmark.default_image_size = resnet_v1_pathology.default_image_size
 
+def resnet_v1_50_final(inputs,
+			num_classes=None,
+			is_training=True,
+			global_pool=True,
+			output_stride=None,
+			spatial_squeeze=True,
+			store_non_strided_activations=False,
+			reuse=None,
+			scope='resnet_v1_50_final'):
+  blocks = [
+      resnet_v1_block('block1', base_depth=64, num_units=3, stride=2),
+      resnet_v1_block('block2', base_depth=128, num_units=4, stride=2),
+      resnet_v1_block('block3', base_depth=256, num_units=6, stride=2),
+      resnet_v1_block('block4', base_depth=512, num_units=3, stride=1),
+  ]
+  return resnet_v1_final(inputs, blocks, num_classes, is_training,
+                   global_pool=global_pool, output_stride=output_stride,
+                   include_root_block=True, spatial_squeeze=spatial_squeeze,
+                   store_non_strided_activations=store_non_strided_activations,
+                   reuse=reuse, scope=scope)
+resnet_v1_50_final.default_image_size = resnet_v1_final.default_image_size
 
 def resnet_v1_101(inputs,
                   num_classes=None,
