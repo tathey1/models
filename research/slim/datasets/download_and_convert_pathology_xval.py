@@ -8,6 +8,8 @@ This module reads the pathology pictures that make up the pathology data
 and creates two TFRecord datasets: one for train and one for test.
 Each TFRecord dataset is comprised of a set of TF-Example protocol buffers, 
 each of which conain a single image and label
+
+Creates 10 splits
 """
 
 from __future__ import absolute_import

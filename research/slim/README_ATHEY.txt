@@ -1,3 +1,6 @@
+The scripts convert_tiff_to_jpeg.py shows how I converted the tif images to jpegs (which was necessary in order to make tfrecord files)
+The file datasets/download_and_convert_pathology_xval.py shows how I made the 10 splits and created the tfrecord files
+
 After modifying xval.sh, you can run it with ./xval.sh to perform 10 fold cross validation on a model
 
 I will outline the changes that need to be made to create a new model that is based on pretrained weights
