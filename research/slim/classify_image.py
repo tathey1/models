@@ -1,3 +1,18 @@
+'''
+Takes a model checkpoint and makes predictions on a dataset and writes these results to a file.
+With the predictions, we can make ROC curves and confusion matrices etc.
+
+make sure the network name has been added to model_name_to_variables
+
+Example usage:
+CUDA_VISIBLE_DEVICES=1 python classify_image.py --num_classes=4 \
+--infile=/workspace/data/Part-A_Originaljpeg/pathology_validation_0_00000-of-00001.tfrecord \
+--tfrecord=True --outfile=/workspace/results/xval_final_15000/predict/predict.txt \
+--model_name=resnet_v1_50_final \
+--checkpoint_path=/workspace/results/xval_final_15000/train_logs/val_0/model.ckpt-15000
+'''
+
+
 #!/usr/bin/env python
 
 from __future__ import print_function
@@ -29,7 +44,7 @@ from preprocessing import preprocessing_factory
 
 slim = tf.contrib.slim
 
-model_name_to_variables = {'resnet_v1_50_pathology_benchmark':'resnet_v1_50_pathology_benchmark','inception_v3':'InceptionV3','inception_v4':'InceptionV4','resnet_v1_50':'resnet_v1_50','resnet_v1_152':'resnet_v1_152'}
+model_name_to_variables = {'resnet_v1_50_final':'resnet_v1_50_final','resnet_v1_50_pathology_benchmark':'resnet_v1_50_pathology_benchmark','inception_v3':'InceptionV3','inception_v4':'InceptionV4','resnet_v1_50':'resnet_v1_50','resnet_v1_152':'resnet_v1_152'}
 
 preprocessing_name = FLAGS.preprocessing_name or FLAGS.model_name
 eval_image_size = FLAGS.eval_image_size

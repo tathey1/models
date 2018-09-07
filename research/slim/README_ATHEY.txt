@@ -3,6 +3,8 @@ The file datasets/download_and_convert_pathology_xval.py shows how I made the 10
 
 After modifying xval.sh, you can run it with ./xval.sh to perform 10 fold cross validation on a model
 
+If you want to look at the actual predictions of a model that has been trained (e.g. after running xval.sh), I made classify_image.py to output predictions on a validation dataset
+
 I will outline the changes that need to be made to create a new model that is based on pretrained weights
 In this example, say your net is based on resnet:
 
